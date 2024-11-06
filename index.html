@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Preview</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            height: 80vh;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Left side: Video preview */
+        .preview {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            padding: 20px;
+        }
+
+        .preview video {
+            max-width: 100%;
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .preview video.loaded {
+            opacity: 1;
+        }
+
+        .message {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        /* Right side: Scrollable video list */
+        .video-list-container {
+            flex: 1;
+            background-color: #f9f9f9;
+            border-left: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .video-list {
+            padding: 0;
+            list-style: none;
+            margin: 0;
+        }
+
+        .video-item {
+            padding: 10px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-item:hover {
+            background-color: #eee;
+        }
+
+        .video-item.selected .full-message {
+            display: block;
+        }
+
+        .full-message {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #333;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Left Side: Video Preview -->
+        <div class="preview">
+            <video id="videoPlayer" controls style="max-height: 500px;">
+                <source id="videoSource" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <p class="message" id="videoMessage">Select a video to preview</p>
+        </div>
+        <!-- Right Side: Scrollable Video List -->
+        <div class="video-list-container">
+            <ul class="video-list" id="videoList"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Define the API endpoint to fetch video records
+        const apiEndpoint = 'https://sign-language.eshine.fashion/sign-language/records';
+
+        // Fetch the video data from the API and populate the list
+        async function fetchVideoData() {
+            try {
+                const response = await axios.get(apiEndpoint, { headers: { 'accept': 'application/json' } });
+                const videos = response.data;
+                const videoList = document.getElementById('videoList');
+
+                // Clear the video list before adding new items
+                videoList.innerHTML = '';
+
+                // Populate the video list
+                videos.forEach(video => {
+                    const shortId = video.id.slice(0, 8);
+                    const idListPreview = video.id_list.slice(0, 10).join('、');
+                    const remark = video.remark;
+                    const listItem = document.createElement('li');
+                    listItem.className = 'video-item';
+                    listItem.onclick = () => previewVideo(video.output_path, video.id, video.message, listItem);
+
+                    // Display ID and IDs with background color indicating status
+                    let movDownloadURL = ""
+                    if (video.status === 'completed') {
+                        const movPath = video.output_path.replace('.mp4', '.mov');
+                        movDownloadURL = `https://sign-language.eshine.fashion/sign-language/preview_video?filename=${movPath}`;
+                    }
+                    const downloadFileName = shortId;
+                    // 设置列表项的内容，包括下载 mov 文件的链接
+                    listItem.innerHTML = `
+                        <span>ID: ${shortId}</span>
+                        <span>IDs: ${idListPreview}</span>
+                        <span>remark: ${video.remark}</span>
+                        ${movDownloadURL ? `<a href="${movDownloadURL}" download>Download mov file</a>` : ''}
+                        <p class="full-message"></p>
+                    `;
+
+                    // Set background color based on status
+                    if (video.status === 'completed') {
+                        listItem.style.backgroundColor = '#f0f8ff';
+                    } else if (video.status === 'failed') {
+                        listItem.style.backgroundColor = '#ffe0e0';
+                    }
+
+                    videoList.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error('Error fetching video data:', error);
+            }
+        }
+
+        // Function to preview a selected video
+        function previewVideo(videoPath, videoId, message, listItem) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoSource = document.getElementById('videoSource');
+            const videoMessage = document.getElementById('videoMessage');
+
+            // Hide all full messages in other items
+            document.querySelectorAll('.video-item .full-message').forEach(msg => msg.style.display = 'none');
+
+            // Remove selected style from other items
+            document.querySelectorAll('.video-item').forEach(item => item.classList.remove('selected'));
+
+            // Set selected style to the current list item
+            listItem.classList.add('selected');
+
+            // Update the full message within the selected listItem
+            const fullMessageElement = listItem.querySelector('.full-message');
+            fullMessageElement.textContent = message;
+            fullMessageElement.style.display = 'block'; // Ensure message is visible
+
+            // Set the new video source URL and add transition
+            videoSource.src = `https://sign-language.eshine.fashion/sign-language/preview_video?filename=${videoPath}`;
+            videoPlayer.classList.remove('loaded'); // Reset opacity for fade-in effect
+            videoPlayer.load(); // Load the new video source
+
+            // Display previewing message
+            videoMessage.textContent = `Previewing video ID: ${videoId}`;
+
+            // Add fade-in effect when video is loaded
+            videoPlayer.onloadeddata = () => {
+                videoPlayer.classList.add('loaded');
+            };
+        }
+        // Fetch video data on page load
+        window.onload = fetchVideoData;
+    </script>
+</body>
+
+</html>

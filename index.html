@@ -206,7 +206,10 @@
             };
         }
         // Fetch video data on page load
-        window.onload = fetchVideoData;
+        window.onload = () => {
+            fetchVideoData();
+            setInterval(fetchVideoData, 1000); // 每秒自動更新
+        };
     </script>
 </body>
 

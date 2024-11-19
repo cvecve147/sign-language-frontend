@@ -137,7 +137,6 @@
                 videos.forEach(video => {
                     const shortId = video.id.slice(0, 8);
                     const idListPreview = video.id_list.slice(0, 10).join('、');
-                    const remark = video.remark;
                     const listItem = document.createElement('li');
                     listItem.className = 'video-item';
                     listItem.onclick = () => previewVideo(video.output_path, video.id, video.message, listItem);
@@ -153,7 +152,8 @@
                     listItem.innerHTML = `
                         <span>ID: ${shortId}</span>
                         <span>IDs: ${idListPreview}</span>
-                        <span>remark: ${video.remark}</span>
+                        <span>Remark: ${video.remark}</span>
+                        <span>Content: ${video.content}</span>
                         ${movDownloadURL ? `<a href="${movDownloadURL}" download>Download mov file</a>` : ''}
                         <p class="full-message"></p>
                     `;
